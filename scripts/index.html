@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+
+<head>
+    <title>Tweet Search</title>
+</head>
+
+<body>
+    <table id="searchtable">
+        <tr>
+            <td style="align-content: center; width: 30%;"><img src="images/twitterlogo.jpg" alt="Tweet Search"
+                    height="25" width="50"></td>
+
+
+            <td><input type="text" id="tweetsearch" placeholder="Search tweets" value="" /></td>
+
+            <td><button type="button" onclick="getSearchResults()">Search</button></td>
+
+        </tr>
+    </table>
+
+    <table id="searchmastertable">
+        <div style="float: left; width:20%;">
+            <table id="facetedsearchtable"></table>
+        </div>
+        <div style="float: right; width:80%;">
+            <table id="mytable"></table>
+        </div>
+    </table>
+</body>
+<script type="text/javascript">
+
+    function clearPreviousResults() {
+        var tableLength = document.getElementById("mytable").rows.length;
+        if (tableLength > 0) {
+            console.log("Yes Previous Results");
+            for (var i = 0; i < tableLength; i++) {
+                document.getElementById("mytable").deleteRow(0);
+                console.log("Deleting rowwwwwwwwww" + i);
+            }
+        }
+        else {
+            console.log("No Previous results");
+        }
+
+    }
+
+
+    
+    function getSearchResults() {
+        console.log("Before Search results")
+        clearPreviousResults();
+        console.log("Get Search results")
+        const myHeaders = new Headers({'Access-Control-Allow-Origin':'*'});
+        //console.log(myHeaders);
+        var strURL = "http://18.219.133.54:8983/solr/IRF19P4/select?q=text%3A" + encodeURI(document.getElementById("tweetsearch").value).toString();
+        //console.log(a); 
+        console.log(strURL)
+        const myInit = 
+        {
+            method: 'GET',
+            headers: myHeaders,
+            mode: 'cors'
+            //cache: 'default'
+        };
+        const req = new Request(strURL,myInit);
+		fetch(strURL,{mode: 'cors'}).then(response => response.json()).then(data =>{
+                console.log(data.response.docs);
+                var totaltweets = data.response.docs;
+                var table = document.getElementById("mytable");
+
+                for (var i = 0; i < totaltweets.length; i++) {
+                    //console.log("Tweet text:"+totaltweets[i].text_de)
+                    var tableLength = table.length;
+                    var row = table.insertRow(table.length);
+                    var cell1 = row.insertCell(0);
+
+                    cell1.innerHTML = totaltweets[i].text;
+                    cell1.style.color = "blue";
+
+                    var inforow = table.insertRow(table.length);
+                    var cell2 = inforow.insertCell(0);
+
+                    cell2.innerHTML = totaltweets[i].created_at;
+                    cell2.style.color = "black";
+		
+		}
+    })
+	}
+</script>

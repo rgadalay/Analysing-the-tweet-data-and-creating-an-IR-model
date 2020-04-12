@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+
+<head>
+    <title>Tweet Search</title>
+    <script src="./d3.min.js"></script>
+    <meta charset="utf-8">
+    <style>
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: #f1f1f1;
+            min-width: 200px;
+            box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
+            z-index: 1;
+        }
+
+        .dropdown-content a {
+            color: black;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+        }
+
+        .dropdown-content a:hover {
+            background-color: rgb(165, 158, 158);
+        }
+
+        .dropdown:hover .dropdown-content {
+            display: block;
+        }
+
+        .dropdown:hover .dropbtn {
+            background-color: #3e8e41;
+        }
+
+        .pagination {
+            position: relative;
+            bottom: 10px;
+            width: 50%;
+        }
+    </style>
+    <div style="text-align: center;">
+        <b style="text-align: center; margin: auto; font-weight: bold;font-size:x-large">ANALYSIS OF POI TWEETS</b>
+    </div>
+</head>
+
+<body style="background-color:silver;" onload="PageLoad()">
+    <br>
+    <br>
+    <div style="float: right; width: 20%;">
+        <strong><a href="http://s3.us-east-2.amazonaws.com/mytestingbucket.com/search.html">Search Page</a></strong>
+    </div>
+    <table id="searchmastertable">
+        <div style="float: left; width:20%;">
+            <table id="facetedsearchtable">
+                <div class="dropdown">
+                    <button class="dropbtn">Search by Country</button>
+                    <br>
+                    <b>Select country and click a topic for topic analysis</b>
+                    <div class="dropdown-content">
+                        <a style="text-decoration:none" href=# onclick="FilterbyCountry(1)">India</a>
+                        <a style="text-decoration:none" href=# onclick="FilterbyCountry(2)">USA</a>
+                        <a style="text-decoration:none" href=# onclick="FilterbyCountry(3)">Brazil</a>
+                    </div>
+                </div>
+            </table>
+        </div>
+        <div style="float: right;width:25%;">
+            <table>
+                <tr>
+                    <div id="chart_div"></div>
+                </tr>
+                <br>
+                <tr>
+                    <div id="bar_div"></div>
+                </tr>
+                <br>
+                <br>
+                <br>
+                <tr>
+                    <button type="button" id="pagination" onclick="getNext()">Next</button>
+                </tr>
+            </table>
+        </div>  
+        <br>
+        <br>
+        <table style="float:left;width:10%" class="inlineTable" id="top10topics">
+        </table>
+        <div style="margin:auto;width:64%;">
+            <table id="mytable"></table>
+        </div>
+        <div class="pagination" style="float: right;">
+            <button type="button" onclick="getPrevious()" style="visibility: hidden;">Previous</button>
+            </div>
+    </table>
+</body>
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+<script type="text/javascript">
+    var solrurl = "";
+    var page = 0;
+    function clearPreviousResults() {
+        var tableLength = document.getElementById("mytable").rows.length;
+        if (tableLength > 0) {
+            console.log("Yes Previous Results");
+            for (var i = 0; i < tableLength; i++) {
+                document.getElementById("mytable").deleteRow(0);
+                console.log("Deleting rowwwwwwwwww" + i);
+            }
+        }
+        else {
+            console.log("No Previous results");
+        }
+
+    }
+
+    //changes done
+    var click1 = 0; //changes done
+    function goNext(countrycode, n)  //changes done
+    {
+        click1++;
+        var start = 10 * click1;
+        var topic_arr;
+        var country;
+        var lang;
+        if (countrycode == 1) {
+            country = 'India';;
+            lang = "india"
+            topic_arr = ["Farmers", "Economy", "Election", "Greetings", "Election Campaign", "Government Rule", "Transportation", "Women Empowerment", "Democracy", "Speech"];
+        }
+        else if (countrycode == 2) {
+            country = 'USA';
+            lang = "usa"
+            topic_arr = ["Presidential Campaign", "Women Empowerment", "Immigration", "Education", "Social Welfare", "Technology", "Economy", "*Speech", "Administration", "Climate Change"];
+        }
+        else if (countrycode == 3) {
+            country = 'Brazil';
+            lang = "brazil"
+            topic_arr = ["Greetings", "Election Campaign", "Economy", "Transportation", "Farmers", "Speech", "Elections", "Democracy", "Women Empowerment", "Government Rule"];
+        }
+        else {
+            console.log('no click');
+        }
+        clearPreviousResults();
+        // var strURL = "http://18.219.133.54:8983/solr/IRF19P4/select?q=topic%3A" +
+        //     encodeURI(topic_arr[n]).toString() + "&fq=country%3A" + lang + "&fl=topic%2Ctext&start=" +
+        //     start.toString() + "&rows=10";
+        var strURL = "http://18.219.133.54:8983/solr/IRF19P4/select?defType=dismax&q=" +
+            encodeURI(topic_arr[n]).toString() + "&qf=topic%20text&fq=region%3A" +
+            lang + "&start=" + start.toString() + "&rows=10&fl=topic%2Ctext%2Cpoi_name";
+        console.log("updted url");
+        console.log(strURL);
+
+        fetch(strURL, { mode: 'cors' }).then(response => response.json()).then(data => {
+            //console.log(data.response);
+            var totaltweets = data.response.docs;
+            console.log(totaltweets);
+            var nooftweets = data.response.numFound;
+            console.log(data.response.numFound);
+            strURL = strURL + "&rows=" + nooftweets;
+            console.log(strURL)
+            var totaltweets = data.response.docs;
+            var table = document.getElementById("mytable");
+            nooftweets = data.response.numFound;
+            console.log("Total tweets" + totaltweets.length);
+            for (var i = 0; i < totaltweets.length; i++) {
+                //console.log("Tweet text:"+totaltweets[i].text_de)
+                var tableLength = table.length;
+                var row = table.insertRow(table.length);
+                var cell1 = row.insertCell(0);
+                cell1.innerHTML = totaltweets[i].text;
+                cell1.style.color = "blue";
+                var inforow = table.insertRow(table.length);
+                var cell2 = inforow.insertCell(0);
+                cell2.innerHTML = "Tweet by" + totaltweets[i].poi_name;
+                cell2.style.color = "black";
+            }
+        });
+    }
+
+    // Load the Visualization API and the corechart package.
+    google.charts.load('current', { 'packages': ['corechart'] });
+
+    // Set a callback to run when the Google Visualization API is loaded.
+    google.charts.setOnLoadCallback(drawChart);
+    google.charts.setOnLoadCallback(drawBar);
+
+    // Callback that creates and populates a data table,
+    // instantiates the pie chart, passes in the data and
+    // draws it.
+
+    // function PageLoad() {
+    //     var table = document.getElementById("mytable");
+    //     var nextbutton=document.getElementById("pagination");
+    //     //nextbutton.style.display = "block";
+    //     document.getElementById("pagination").display="none";
+    //     // if (table.length>0) {
+    //     //     console.log("Table length");
+    //     //     nextbutton.style.display = "block";
+    //     // } else {
+    //     //     console.log("Table length <0");
+    //     //     nextbutton.style.display = "none";
+    //     // }
+    // }
+
+    function drawChart(countrycode) { //changes done
+        var a;
+        if (countrycode == 1) {
+            a = [3139, 15117, 8629];
+        }
+        else if (countrycode == 2) {
+            a = [3520, 8154, 9192];
+        }
+        else if (countrycode == 3) {
+            a = [2345, 17282, 753];
+        }
+        // Create the data table.
+        var data = new google.visualization.DataTable();
+        data.addColumn('string', 'Sentiment');
+        data.addColumn('number', 'Value');
+        data.addRows([
+            ['Negitive', a[0]],
+            ['Neutral', a[1]],
+            ['Positive', a[2]],
+        ]);
+        // Set chart options
+        var options = {
+            'title': 'Sentimental analysis',
+            'width': 350,
+            'height': 200,
+            'is3D': true
+        };
+        // Instantiate and draw our chart, passing in some options.
+        var chart = new google.visualization.PieChart(document.getElementById('chart_div'));
+        chart.draw(data, options);
+    }
+
+    function drawBar(countrycode) { //changes done
+        var t, a1;
+        if (countrycode == 1) {
+            t = ["Farmers", "Economy", "Election", "Greetings", "Election Campaign", "Government Rule", "Transportation", "Women Empowerment", "Democracy", "Speech"];
+            a1 = [5030, 2200, 2182, 2622, 2182, 3152, 2798, 2612, 1887, 2920];
+        }
+        else if (countrycode == 2) {
+            t = ["Presidential Campaign", "Women Empowerment", "Immigration", "Education", "Social Welfare", "Technology", "Economy", "Presidential Elections", "Administration", "Climate Change"];
+            a1 = [2020, 1918, 2010, 1552, 1506, 2390, 1668, 3614, 1991, 2177];
+        }
+        else if (countrycode == 3) {
+            t = ["Greetings", "Election Campaign", "Economy", "Transportation", "Farmers", "Speech", "Elections", "Democracy", "Women Empowerment", "Government Rule"];
+            a1 = [1677, 2755, 2147, 2681, 3478, 1257, 2695, 1179, 1376, 1135];
+        }
+        var data = google.visualization.arrayToDataTable([
+            ['Topics', 'Weight', { role: 'style' }, { role: 'annotation' }],
+            [t[0], a1[0], 'red', t[0]],
+            [t[1], a1[1], 'violet', t[1]],
+            [t[2], a1[2], 'gold', t[2]],
+            [t[3], a1[3], 'indigo', t[3]],
+            [t[4], a1[4], 'orange', t[4]],
+            [t[5], a1[5], 'brown', t[5]],
+            [t[6], a1[6], 'yellow', t[6]],
+            [t[7], a1[7], 'black', t[7]],
+            [t[8], a1[8], 'blue', t[8]],
+            [t[9], a1[9], 'green', t[9]]
+        ]);
+        var barchart_options = {
+            title: 'Topic analysis',
+            width: 350,
+            height: 250,
+            legend: 'none',
+            'is3D': true
+        };
+        var barchart = new google.visualization.BarChart(document.getElementById('bar_div'));
+        barchart.draw(data, barchart_options);
+    }
+
+    function top_ten_tops(countrycode) {
+        var text = '';
+        var indiatopics = ["Farmers", "Economy", "Election", "Greetings", "Election Campaign", "Government Rule", "Transportation", "Women Empowerment", "Democracy", "Speech"];
+        var usatopics = ["Presidential Campaign", "Women Empowerment", "Immigration", "Education", "Social Welfare", "Technology", "Economy", "Presidential Elections", "Administration", "Climate Change"];
+        var braziltopics = ["Elections", "Women Empowerment", "Democracy", "Social Welfare", "Debate", "Economy", "Administration", "Campaigning", "Education", "Travel"];
+        if (countrycode == 1) {
+            topics = indiatopics;
+        }
+        else if (countrycode == 2) {
+            topics = usatopics;
+        }
+        else if (countrycode == 3) {
+            topics = braziltopics;
+        }
+        else {
+            console.log("No Click");
+        }
+        for (i = 0; i < 10; i++) {
+            text += '<a style="text-decoration:none;color:black;text;font-weight:bold" onclick="topicSearch(' + i + ',' + countrycode + ')" href=#>' + topics[i] + '</a>' + '</br>';
+        }
+        return text;
+    }
+
+    var topicstate; // change done
+    function topicSearch(n, countrycode) {
+        topicstate = [];
+        click1 = 0;
+        topicstate.push(n); // changes done
+        var topic_arr;
+        var country;
+        var lang;
+        if (countrycode == 1) {
+            country = 'India';;
+            lang = "india"
+            topic_arr = ["Farmers", "Economy", "Election", "Greetings", "Election Campaign", "Government Rule", "Transportation", "Woman Empowerment", "Democracy", "Speech"];
+        }
+        else if (countrycode == 2) {
+            country = 'USA';
+            lang = "usa"
+            topic_arr = ["PresidentialCampaign", "WomenEmpowerment", "Immigration", "Education", "SocialWelfare", "Technology", "Economy", "PresidentialElections", "Administration", "ClimateChange"];
+        }
+        else if (countrycode == 3) {
+            country = 'Brazil';
+            lang = "brazil"
+            topic_arr = ["Elections", "Woman Empowerment", "Democracy", "Social Welfare", "Debate", "Economy", "Administration", "Campaigning", "Education", "Travel"];
+
+        }
+        else {
+            console.log('no click');
+        }
+        clearPreviousResults();
+        const myHeaders = new Headers({ 'Access-Control-Allow-Origin': '*' });
+        //console.log(myHeaders);
+        var strURL = "http://18.219.133.54:8983/solr/IRF19P4/select?defType=dismax&q=" + encodeURI(topic_arr[n]).toString() + "&qf=topic%20text&fq=region%3A" + lang + "&fl=topic%2Ctext%2Cpoi_name";
+        //+"select?fl=topic&q=%3A"+country+"%20%20AND%20topic%3A"+encodeURI(topic_arr[n]).toString();
+        console.log(strURL);
+        solrurl = strURL;
+        const myInit =
+        {
+            method: 'GET',
+            headers: myHeaders,
+            mode: 'cors'
+            //cache: 'default'
+        };
+
+        var test = 0;
+        const req = new Request(strURL, myInit);
+        fetch(strURL, { mode: 'cors' })
+            .then(response => response.json()).
+            then(data => {
+                //console.log(data.response);
+
+                test = data.response.numFound;
+            }).then(() => console.log("Test" + test))
+
+
+        //strURL=strURL+"&rows="+nooftweets;
+        console.log("Rowsw")
+        console.log("test" + test);
+        console.log(strURL);
+        fetch(strURL, { mode: 'cors' }).then(response => response.json()).then(data => {
+            //console.log(data.response.docs);
+            var totaltweets = data.response.docs;
+            var table = document.getElementById("mytable");
+            nooftweets = data.response.numFound;
+            console.log("Total tweets" + totaltweets.length);
+            for (var i = 0; i < totaltweets.length; i++) {
+                //console.log("Tweet text:"+totaltweets[i].text_de)
+                var tableLength = table.length;
+                var row = table.insertRow(table.length);
+                var cell1 = row.insertCell(0);
+
+                cell1.innerHTML = totaltweets[i].text;
+                cell1.style.color = "blue";
+                cell1.style.fontWeight = "900";
+
+                var inforow = table.insertRow(table.length);
+                var cell2 = inforow.insertCell(0);
+
+                cell2.innerHTML = "Tweet by " + totaltweets[i].poi_name;
+                cell2.style.color = "black";
+
+                var inforow = table.insertRow(table.length);
+                var cell3 = inforow.insertCell(0);
+
+            }
+        })
+
+
+    }
+
+    var a;//change done
+    function FilterbyCountry(countrycode) {
+        a = [];
+        a.push(countrycode);                        //changes done
+        if (countrycode == 1) {
+            top10topics.innerHTML = top_ten_tops(1);
+            drawChart(1);
+            drawBar(1);
+            //alert(solrurl+"India");
+        }
+        else if (countrycode == 2) {
+            top10topics.innerHTML = top_ten_tops(2);
+            drawChart(2);
+            drawBar(2);
+        }
+        else if (countrycode == 3) {
+            top10topics.innerHTML = top_ten_tops(3);
+            drawChart(3);
+            drawBar(3);
+        }
+        else {
+            console.log("No Click");
+        }
+        console.log(a);
+    }
+
+    function getNext() {     //change done
+        console.log(a);
+        var currentcountry = a[a.length - 1]
+        console.log(currentcountry);
+        var currentTopic = topicstate[topicstate.length - 1]
+        goNext(currentcountry, currentTopic);
+    }
+
+</script>
